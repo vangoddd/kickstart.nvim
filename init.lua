@@ -602,7 +602,8 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {},
+        vtsls = {},
+        -- eslint_lsp = {},
       }
 
       -- Ensure the servers and tools above are installed
@@ -616,6 +617,10 @@ require('lazy').setup({
       vim.list_extend(ensure_installed, {
         'lua-language-server', -- Lua Language server
         'stylua', -- Used to format Lua code
+        'prettier', -- prettier
+        'quick-lint-js', -- js
+        'vtsls', -- js
+        --'eslint-lsp', -- eslint
         -- You can add other tools here that you want Mason to install
       })
 
@@ -652,7 +657,10 @@ require('lazy').setup({
           Lua = {},
         },
       })
+
       vim.lsp.enable 'lua_ls'
+      vim.lsp.enable 'vtsls'
+      vim.lsp.enable 'quick_lint_js'
     end,
   },
 
@@ -798,8 +806,11 @@ require('lazy').setup({
     config = function()
       ---@diagnostic disable-next-line: missing-fields
       require('tokyonight').setup {
+        transparent = true,
         styles = {
           comments = { italic = false }, -- Disable italics in comments
+          sidebars = 'dark',
+          floats = 'transparent',
         },
       }
 
