@@ -33,7 +33,7 @@ vim.o.splitright = true
 vim.o.splitbelow = true
 
 vim.o.list = true
-vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+vim.opt.listchars = { tab = '▎ ', trail = '·', nbsp = '␣' }
 
 vim.o.inccommand = 'split'
 vim.o.cursorline = true
@@ -141,6 +141,11 @@ require('lazy').setup({
         extensions = {
           ['ui-select'] = { require('telescope.themes').get_dropdown() },
         },
+        pickers = {
+          buffers = {
+            initial_mode = 'normal',
+          },
+        },
       }
 
       pcall(require('telescope').load_extension, 'fzf')
@@ -202,7 +207,53 @@ require('lazy').setup({
       'nvim-tree/nvim-web-devicons',
     },
     lazy = false,
-    config = function() vim.keymap.set('n', '<leader>e', '<Cmd>Neotree<CR>') end,
+    config = function()
+      vim.keymap.set('n', '<leader>e', '<Cmd>Neotree<CR>')
+      require('neo-tree').setup {
+        window = {
+          position = 'left',
+          width = 40,
+        },
+      }
+    end,
+  },
+  {
+    'folke/edgy.nvim',
+    event = 'VeryLazy',
+    init = function()
+      vim.opt.laststatus = 3
+      vim.opt.splitkeep = 'screen'
+    end,
+    opts = {
+      left = {
+        -- Neo-tree filesystem always takes half the screen height
+        {
+          title = 'Neo-Tree',
+          ft = 'neo-tree',
+          filter = function(buf) return vim.b[buf].neo_tree_source == 'filesystem' end,
+          size = { height = 0.5 },
+        },
+        {
+          title = function()
+            local buf_name = vim.api.nvim_buf_get_name(0) or '[No Name]'
+            return vim.fn.fnamemodify(buf_name, ':t')
+          end,
+          ft = 'Outline',
+          pinned = true,
+          open = 'SymbolsOutlineOpen',
+        },
+        -- any other neo-tree windows
+        'neo-tree',
+      },
+    },
+  },
+
+  --tabs or 'windows'
+  {
+    'akinsho/bufferline.nvim',
+    version = '*',
+    dependencies = 'nvim-tree/nvim-web-devicons',
+    config = function() require('bufferline').setup() end,
   },
 
   -- LSP Plugins
@@ -503,12 +554,12 @@ require('lazy').setup({
 
       -- minimap
       require('mini.map').setup()
-      vim.keymap.set('n', '<Leader>mc', MiniMap.close)
-      vim.keymap.set('n', '<Leader>mf', MiniMap.toggle_focus)
-      vim.keymap.set('n', '<Leader>mo', MiniMap.open)
-      vim.keymap.set('n', '<Leader>mr', MiniMap.refresh)
-      vim.keymap.set('n', '<Leader>ms', MiniMap.toggle_side)
-      vim.keymap.set('n', '<Leader>mt', MiniMap.toggle)
+      vim.keymap.set('n', '<Leader>mc', MiniMap.close, { desc = 'Close minimap' })
+      vim.keymap.set('n', '<Leader>mf', MiniMap.toggle_focus, { desc = 'Toggle minimap focus' })
+      vim.keymap.set('n', '<Leader>mo', MiniMap.open, { desc = 'Open minimap' })
+      vim.keymap.set('n', '<Leader>mr', MiniMap.refresh, { desc = 'Refresh minimap' })
+      vim.keymap.set('n', '<Leader>ms', MiniMap.toggle_side, { desc = 'Toggle minimap side' })
+      vim.keymap.set('n', '<Leader>mt', MiniMap.toggle, { desc = 'Toggle minimap' })
 
       local statusline = require 'mini.statusline'
       statusline.setup { use_icons = vim.g.have_nerd_font }
@@ -528,14 +579,20 @@ require('lazy').setup({
     ---@module "ibl"
     ---@type ibl.config,
     opts = {},
-    config = function() require('ibl').setup() end,
+    config = function()
+      require('ibl').setup {
+        indent = {
+          priority = 1000,
+        },
+      }
+    end,
   },
 
   -- Highlight, edit, and navigate code
   {
     'nvim-treesitter/nvim-treesitter',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'javascript' }
       require('nvim-treesitter').install(filetypes)
       vim.api.nvim_create_autocmd('FileType', {
         pattern = filetypes,
