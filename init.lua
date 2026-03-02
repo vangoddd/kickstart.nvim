@@ -93,6 +93,11 @@ vim.g.maplocalleader = ' '
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
 
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
+vim.opt.termguicolors = true
+
 -- [[ Setting options ]]
 -- See `:help vim.o`
 -- NOTE: You can change these options as you wish!
@@ -472,7 +477,28 @@ require('lazy').setup({
     end,
   },
 
+  -- neo-tree
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'MunifTanjim/nui.nvim',
+      'nvim-tree/nvim-web-devicons',
+    },
+    lazy = false,
+    config = function() vim.keymap.set('n', '<leader>e', '<Cmd>Neotree<CR>') end,
+  },
+
   -- LSP Plugins
+  {
+    'seblyng/roslyn.nvim',
+    ---@module 'roslyn.config'
+    ---@type RoslynNvimConfig
+    opts = {
+      -- your configuration comes here; leave empty for default settings
+    },
+  },
+
   {
     -- Main LSP Configuration
     'neovim/nvim-lspconfig',
@@ -480,7 +506,15 @@ require('lazy').setup({
       -- Automatically install LSPs and related tools to stdpath for Neovim
       -- Mason must be loaded before its dependents so we need to set it up here.
       -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
-      { 'mason-org/mason.nvim', opts = {} },
+      {
+        'mason-org/mason.nvim',
+        opts = {
+          registries = {
+            'github:mason-org/mason-registry',
+            'github:Crashdummyy/mason-registry',
+          },
+        },
+      },
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
       -- Useful status updates for LSP.
@@ -602,7 +636,27 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        vtsls = {},
+        vtsls = {
+          settings = {
+            javascript = {
+              format = {
+                semicolons = 'insert',
+              },
+            },
+            vtsls = {
+              javascript = {
+                format = {
+                  --baseIndentSize = 4,
+                  tabSize = 2,
+                  indentSize = 2,
+                  indentStyle = 2,
+                  --convertTabsToSpaces = false,
+                  --trimTrailingWhitespace = true,
+                },
+              },
+            },
+          },
+        },
         -- eslint_lsp = {},
       }
 
@@ -657,6 +711,22 @@ require('lazy').setup({
           Lua = {},
         },
       })
+
+      -- roslyn config
+      vim.lsp.config('roslyn', {
+        on_attach = function() print 'This will run when the server attaches!' end,
+        settings = {
+          ['csharp|inlay_hints'] = {
+            csharp_enable_inlay_hints_for_implicit_object_creation = true,
+            csharp_enable_inlay_hints_for_implicit_variable_types = true,
+          },
+          ['csharp|code_lens'] = {
+            dotnet_enable_references_code_lens = true,
+          },
+        },
+      })
+
+      vim.lsp.enable 'roslyn'
 
       vim.lsp.enable 'lua_ls'
       vim.lsp.enable 'vtsls'
@@ -720,15 +790,10 @@ require('lazy').setup({
           return 'make install_jsregexp'
         end)(),
         dependencies = {
-          -- `friendly-snippets` contains a variety of premade snippets.
-          --    See the README about individual language/framework/plugin snippets:
-          --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
+          {
+            'rafamadriz/friendly-snippets',
+            config = function() require('luasnip.loaders.from_vscode').lazy_load() end,
+          },
         },
         opts = {},
       },
@@ -737,43 +802,50 @@ require('lazy').setup({
     --- @type blink.cmp.Config
     opts = {
       keymap = {
-        -- 'default' (recommended) for mappings similar to built-in completions
-        --   <c-y> to accept ([y]es) the completion.
-        --    This will auto-import if your LSP supports it.
-        --    This will expand snippets if the LSP sent a snippet.
-        -- 'super-tab' for tab to accept
-        -- 'enter' for enter to accept
-        -- 'none' for no mappings
-        --
-        -- For an understanding of why the 'default' preset is recommended,
-        -- you will need to read `:help ins-completion`
-        --
-        -- No, but seriously. Please read `:help ins-completion`, it is really good!
-        --
-        -- All presets have the following mappings:
-        -- <tab>/<s-tab>: move to right/left of your snippet expansion
-        -- <c-space>: Open menu or open docs if already open
-        -- <c-n>/<c-p> or <up>/<down>: Select next/previous item
-        -- <c-e>: Hide menu
-        -- <c-k>: Toggle signature help
-        --
-        -- See :h blink-cmp-config-keymap for defining your own keymap
-        preset = 'default',
+        preset = 'enter',
 
-        -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
-        --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+        -- tab to select next if completion is active
+        ['<Tab>'] = {
+          function(cmp)
+            if cmp.is_active() then
+              return cmp.select_next()
+            else
+              return nil
+            end
+          end,
+          'snippet_forward',
+          'fallback',
+        },
+
+        -- tab to select previous if completion is active
+        ['<S-Tab>'] = {
+          function(cmp)
+            if cmp.is_active() then
+              return cmp.select_prev()
+            else
+              return nil
+            end
+          end,
+          'snippet_backward',
+          'fallback',
+        },
+
+        ['<Esc>'] = { 'hide', 'fallback' },
       },
 
       appearance = {
-        -- 'mono' (default) for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
-        -- Adjusts spacing to ensure icons are aligned
         nerd_font_variant = 'mono',
       },
 
       completion = {
-        -- By default, you may press `<c-space>` to show the documentation.
-        -- Optionally, set `auto_show = true` to show the documentation after a delay.
-        documentation = { auto_show = false, auto_show_delay_ms = 500 },
+        documentation = { auto_show = true, auto_show_delay_ms = 500 },
+        -- disable auto change text when selection from completion list
+        list = {
+          selection = {
+            preselect = true,
+            auto_insert = false,
+          },
+        },
       },
 
       sources = {
@@ -781,17 +853,8 @@ require('lazy').setup({
       },
 
       snippets = { preset = 'luasnip' },
-
-      -- Blink.cmp includes an optional, recommended rust fuzzy matcher,
-      -- which automatically downloads a prebuilt binary when enabled.
-      --
-      -- By default, we use the Lua implementation instead, but you may enable
-      -- the rust implementation via `'prefer_rust_with_warning'`
-      --
-      -- See :h blink-cmp-config-fuzzy for more information
       fuzzy = { implementation = 'lua' },
 
-      -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
     },
   },
@@ -809,7 +872,7 @@ require('lazy').setup({
         transparent = true,
         styles = {
           comments = { italic = false }, -- Disable italics in comments
-          sidebars = 'dark',
+          sidebars = 'transparent',
           floats = 'transparent',
         },
       }
@@ -827,26 +890,20 @@ require('lazy').setup({
   { -- Collection of various small independent plugins/modules
     'nvim-mini/mini.nvim',
     config = function()
-      -- Better Around/Inside textobjects
-      --
-      -- Examples:
-      --  - va)  - [V]isually select [A]round [)]paren
-      --  - yinq - [Y]ank [I]nside [N]ext [Q]uote
-      --  - ci'  - [C]hange [I]nside [']quote
       require('mini.ai').setup { n_lines = 500 }
-
-      -- Add/delete/replace surroundings (brackets, quotes, etc.)
-      --
-      -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
-      -- - sd'   - [S]urround [D]elete [']quotes
-      -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
+      require('mini.comment').setup()
 
-      -- Simple and easy statusline.
-      --  You could remove this setup call if you don't like it,
-      --  and try some other statusline plugin
+      -- minimap
+      require('mini.map').setup()
+      vim.keymap.set('n', '<Leader>mc', MiniMap.close)
+      vim.keymap.set('n', '<Leader>mf', MiniMap.toggle_focus)
+      vim.keymap.set('n', '<Leader>mo', MiniMap.open)
+      vim.keymap.set('n', '<Leader>mr', MiniMap.refresh)
+      vim.keymap.set('n', '<Leader>ms', MiniMap.toggle_side)
+      vim.keymap.set('n', '<Leader>mt', MiniMap.toggle)
+
       local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
       statusline.setup { use_icons = vim.g.have_nerd_font }
 
       -- You can configure sections in the statusline by overriding their
@@ -858,6 +915,16 @@ require('lazy').setup({
       -- ... and there is more!
       --  Check out: https://github.com/nvim-mini/mini.nvim
     end,
+  },
+
+  -- indentation guide
+  {
+    'lukas-reineke/indent-blankline.nvim',
+    main = 'ibl',
+    ---@module "ibl"
+    ---@type ibl.config,
+    opts = {},
+    config = function() require('ibl').setup() end,
   },
 
   { -- Highlight, edit, and navigate code
